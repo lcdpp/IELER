@@ -2,6 +2,7 @@
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using System.Collections;  
+using System.Collections.Generic;
 
 public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHandler{
 
@@ -12,7 +13,16 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
 	RectTransform mRectTransform; 
 	Canvas canvas;
 
-    private Queue m_DrawPath = new Queue();
+	private Queue<Vector2> m_DrawPath = null;
+	private Queue<Queue<Vector2>> m_WaitDrawPaths = new Queue<Queue<Vector2>>();
+	private Queue<Vector2> m_ActivePath = null;
+
+	private Vector2 m_LastPathPos = null;
+	private Vector2 m_LastProcessPos = null;
+
+	private bool isPointerDown = false;
+
+	private float m_brushdRadius = 5f;
 
 	void Awake(){
 		mRectTransform = GetComponent<RectTransform> (); 
@@ -24,51 +34,92 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
 		texRender = new Texture2D(image.mainTexture.width, image.mainTexture.height,TextureFormat.ARGB32,true);
 
 		Reset ();
-
 	}
 
-	bool isMove = false;
-
 	public void OnPointerDown(PointerEventData data){
-		Debug.Log ("OnPointerDown..."+data.position);
-		start = ConvertSceneToUI (data.position);
-		isMove = true;
+		Vector2 _uipos = ConvertSceneToUI(data.position);
+		AddToActivePath(_uipos);
+		isPointerDown = true;
 	}
 
 	public void OnPointerUp(PointerEventData data){
-		isMove = false;
-		Debug.Log ("OnPointerUp..."+data.position);
-		OnMouseMove (data.position);
-		start = Vector2.zero;
+		Vector2 _uipos = ConvertSceneToUI(data.position);
+		AddToActivePath(_uipos);
+		EndActivePath();
+		isPointerDown = false;
+		m_LastPathPos = null;
 	}
 
-	void Update(){
-		if (isMove) {
+	private void OnPointerMove()
+	{
+		Vector2 _uipos = ConvertSceneToUI(Input.mousePosition);
+		AddToActivePath(_uipos);
+	}
 
-            if (m_DrawPath.Count > 0)
-            {
-                Vector2 _lastPoint = (Vector2)m_DrawPath.Dequeue();
-            }
-			//OnMouseMove (Input.mousePosition);
+	/// <summary>
+	/// 把当前坐标加入到未完成的路径当中
+	/// </summary>
+	/// <param name="pos">UI坐标</param>
+	private void AddToActivePath(Vector2 pos)
+	{
+		if (m_LastPathPos == null
+			&& Vector2.Distance(pos, m_LastPathPos) < 1)
+			return;
+
+		m_LastPathPos = pos;
+
+		if (m_ActivePath == null)
+			m_ActivePath = new Queue<Vector2>();
+		
+		m_ActivePath.Enqueue(pos);
+	}
+
+	/// <summary>
+	/// 完成当路径, 并将当前路径加入到待处理路径当中
+	/// </summary>
+	private void EndActivePath()
+	{
+		if (m_ActivePath != null)
+		{
+			m_WaitDrawPaths.Enqueue(m_ActivePath);
+			m_ActivePath = null;
 		}
 	}
 
-	Vector2 start = Vector2.zero;
-	Vector2 end = Vector2.zero;
+	/// <summary>
+	/// 处理绘制路径
+	/// </summary>
+	private void ProcessWaitDrawPath()
+	{
+		if (m_DrawPath == null
+			|| m_DrawPath.Count == 0)
+		{
+			if (m_WaitDrawPaths.Count > 0)
+			{
+				m_DrawPath = m_WaitDrawPaths.Dequeue();
+			}
+			else
+			{
+				m_DrawPath = m_ActivePath;
+			}
+		}
 
-	Vector2 ConvertSceneToUI(Vector3 posi){
-		Vector2 postion;
-		if(RectTransformUtility.ScreenPointToLocalPointInRectangle(mRectTransform , posi, canvas.worldCamera, out postion)){
-			return postion;
-		} 
-		return Vector2.zero;
+		if (m_DrawPath != null && m_DrawPath.Count > 0)
+		{
+			float _starttime = Time.time;
+			while(m_DrawPath.Count > 0)
+			{
+				Vector2 _newpos = m_DrawPath.Dequeue();
+				RenderPath(m_LastProcessPos, _newpos);
+				m_LastProcessPos = _newpos;
+				if (Time.time - _starttime > 0.03)
+					break;
+			}
+		}
 	}
 
-	void OnMouseMove(Vector2 position)
-	{    
-
-		end = ConvertSceneToUI (position); 
-
+	private void RenderPath(Vector2 start, Vector2 end)
+	{
 		Draw (new Rect (end.x+texRender.width/2, end.y+texRender.height/2, brushScale, brushScale));
 
 		if (start.Equals (Vector2.zero)) {
@@ -84,6 +135,25 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
 		}     
 
 		start = end;
+	}
+
+	void Update()
+	{
+		if (isPointerDown)
+			OnPointerMove();
+
+		ProcessWaitDrawPath();
+	}
+
+	Vector2 start = Vector2.zero;
+	Vector2 end = Vector2.zero;
+
+	Vector2 ConvertSceneToUI(Vector3 posi){
+		Vector2 postion;
+		if(RectTransformUtility.ScreenPointToLocalPointInRectangle(mRectTransform , posi, canvas.worldCamera, out postion)){
+			return postion;
+		} 
+		return null;
 	}
 
 	void Reset(){
@@ -120,4 +190,8 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
 		image.material.SetTexture ("_RendTex",texRender);
 	}
 
+	void DrawSphere(Vector2 center, float radius)
+	{
+		
+	}
 }
