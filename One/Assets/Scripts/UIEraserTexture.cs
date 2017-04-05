@@ -17,8 +17,10 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
 	private Queue<Queue<Vector2>> m_WaitDrawPaths = new Queue<Queue<Vector2>>();
 	private Queue<Vector2> m_ActivePath = null;
 
-	private Vector2 m_LastPathPos = null;
-	private Vector2 m_LastProcessPos = null;
+	private Vector2 m_LastPathPos = Vector2.zero;
+	private Vector2 m_LastProcessPos = Vector2.zero;
+
+    private Vector2 m_DrawPathStartPos = Vector2.zero;
 
 	private bool isPointerDown = false;
 
@@ -47,7 +49,7 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
 		AddToActivePath(_uipos);
 		EndActivePath();
 		isPointerDown = false;
-		m_LastPathPos = null;
+		m_LastPathPos = Vector2.zero;
 	}
 
 	private void OnPointerMove()
@@ -97,7 +99,7 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
 			if (m_WaitDrawPaths.Count > 0)
 			{
 				m_DrawPath = m_WaitDrawPaths.Dequeue();
-			}
+            }
 			else
 			{
 				m_DrawPath = m_ActivePath;
@@ -120,9 +122,9 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
 
 	private void RenderPath(Vector2 start, Vector2 end)
 	{
-		Draw (new Rect (end.x+texRender.width/2, end.y+texRender.height/2, brushScale, brushScale));
+        DrawSphere(end, m_brushdRadius);
 
-		if (start.Equals (Vector2.zero)) {
+		if (start.Equals (end)) {
 			return;
 		}
 
@@ -153,7 +155,7 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
 		if(RectTransformUtility.ScreenPointToLocalPointInRectangle(mRectTransform , posi, canvas.worldCamera, out postion)){
 			return postion;
 		} 
-		return null;
+		return Vector2.zero;
 	}
 
 	void Reset(){
@@ -192,6 +194,26 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
 
 	void DrawSphere(Vector2 center, float radius)
 	{
-		
-	}
+        Rect _rc = new Rect();
+        _rc.xMin = Mathf.Max(0, center.x - radius);
+        _rc.xMax = Mathf.Min(Screen.width, center.x + radius);
+        _rc.yMin = Mathf.Max(0, center.y - radius);
+        _rc.yMax = Mathf.Min(Screen.height, center.y + radius);
+
+        for (int x = (int)_rc.xMin; x < (int)_rc.xMax; x++)
+        {
+            for (int y = (int)_rc.yMin; y < (int)_rc.yMax; y++)
+            {
+                if (Vector2.Distance(new Vector2(x, y), center) < radius)
+                {
+                    Color color = texRender.GetPixel(x, y);
+                    color.a = 0;
+                    texRender.SetPixel(x, y, color);
+                }
+            }
+        }
+
+        //texRender.Apply();
+        //image.material.SetTexture("_RendTex", texRender);
+    }
 }
