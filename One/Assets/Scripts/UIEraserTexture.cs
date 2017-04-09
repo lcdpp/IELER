@@ -24,7 +24,9 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
 
 	private bool isPointerDown = false;
 
-	private float m_brushdRadius = 5f;
+	private float m_brushdRadius = 50f;
+
+    private Color[] m_texPixels;
 
 	void Awake(){
 		mRectTransform = GetComponent<RectTransform> (); 
@@ -33,7 +35,9 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
 
 	void Start () {
 
-		texRender = new Texture2D(image.mainTexture.width, image.mainTexture.height,TextureFormat.ARGB32,true);
+		texRender = new Texture2D(Screen.width, Screen.height, TextureFormat.ARGB32, true);
+
+        m_texPixels = texRender.GetPixels();
 
 		Reset ();
 	}
@@ -55,6 +59,7 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
 	private void OnPointerMove()
 	{
 		Vector2 _uipos = ConvertSceneToUI(Input.mousePosition);
+        
 		AddToActivePath(_uipos);
 	}
 
@@ -65,7 +70,7 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
 	private void AddToActivePath(Vector2 pos)
 	{
 		if (m_LastPathPos == null
-			&& Vector2.Distance(pos, m_LastPathPos) < 1)
+			|| Vector2.Distance(pos, m_LastPathPos) < 10)
 			return;
 
 		m_LastPathPos = pos;
@@ -117,6 +122,9 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
 				if (Time.time - _starttime > 0.03)
 					break;
 			}
+
+            texRender.SetPixels(m_texPixels);
+            texRender.Apply();
 		}
 	}
 
@@ -124,22 +132,22 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
 	{
         DrawSphere(end, m_brushdRadius);
 
-		if (start.Equals (end)) {
-			return;
-		}
-
-		Rect disract = new Rect ((start+end).x/2+texRender.width/2, (start+end).y/2+texRender.height/2, Mathf.Abs (end.x-start.x), Mathf.Abs (end.y-start.y));
-
-		for (int x = (int)disract.xMin; x < (int)disract.xMax; x++) {
-			for (int y = (int)disract.yMin; y < (int)disract.yMax; y++) {
-				Draw (new Rect (x, y, brushScale, brushScale));
-			}    
-		}     
-
-		start = end;
+// 		if (start.Equals (end)) {
+// 			return;
+// 		}
+// 
+// 		Rect disract = new Rect ((start+end).x/2+texRender.width/2, (start+end).y/2+texRender.height/2, Mathf.Abs (end.x-start.x), Mathf.Abs (end.y-start.y));
+// 
+// 		for (int x = (int)disract.xMin; x < (int)disract.xMax; x++) {
+// 			for (int y = (int)disract.yMin; y < (int)disract.yMax; y++) {
+// 				Draw (new Rect (x, y, brushScale, brushScale));
+// 			}    
+// 		}     
+// 
+// 		start = end;
 	}
 
-	void Update()
+	void LateUpdate()
 	{
 		if (isPointerDown)
 			OnPointerMove();
@@ -151,28 +159,23 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
 	Vector2 end = Vector2.zero;
 
 	Vector2 ConvertSceneToUI(Vector3 posi){
-		Vector2 postion;
-		if(RectTransformUtility.ScreenPointToLocalPointInRectangle(mRectTransform , posi, canvas.worldCamera, out postion)){
-			return postion;
-		} 
-		return Vector2.zero;
+
+        return new Vector2(posi.x, posi.y);
 	}
 
-	void Reset(){
+	public void Reset(){
 
-		for (int i = 0; i < texRender.width; i++) {
+        for (int i = 0; i < m_texPixels.Length; ++i)
+        {
+            m_texPixels[i].a = 1f;
+            m_texPixels[i].r = 0.8f;
+            m_texPixels[i].g = 0.8f;
+            m_texPixels[i].b = 0.8f;
+        }
 
-			for (int j = 0; j < texRender.height; j++) {
-
-				Color color = texRender.GetPixel (i,j);
-				color.a = 1;
-				texRender.SetPixel (i,j,color); 
-			}  
-		}   
-
-		texRender.Apply ();
-		image.material.SetTexture ("_RendTex",texRender);
-
+        texRender.SetPixels(m_texPixels);
+        texRender.Apply();
+        image.material.SetTexture("_RendTex", texRender);
 	}
 
 	void Draw(Rect rect){ 
@@ -206,14 +209,15 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
             {
                 if (Vector2.Distance(new Vector2(x, y), center) < radius)
                 {
-                    Color color = texRender.GetPixel(x, y);
-                    color.a = 0;
-                    texRender.SetPixel(x, y, color);
+                    SetAlpha(x, y, 0);
                 }
             }
         }
+    }
 
-        //texRender.Apply();
-        //image.material.SetTexture("_RendTex", texRender);
+    void SetAlpha(int x, int y, float alpha)
+    {
+        int _index = y * texRender.width + x;
+        m_texPixels[_index].a = alpha;
     }
 }
