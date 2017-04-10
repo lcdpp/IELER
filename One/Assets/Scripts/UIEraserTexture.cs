@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using UnityEngine.EventSystems;
 using System.Collections;  
 using System.Collections.Generic;
+using System;
 
 public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHandler{
 
@@ -27,6 +28,8 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
 	private float m_brushdRadius = 50f;
 
     private Color[] m_texPixels;
+
+    private Rect m_drawArea;
 
 	void Awake(){
 		mRectTransform = GetComponent<RectTransform> (); 
@@ -113,7 +116,9 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
 
 		if (m_DrawPath != null && m_DrawPath.Count > 0)
 		{
-			float _starttime = Time.time;
+            m_drawArea = Rect.zero;
+
+            float _starttime = Time.time;
 			while(m_DrawPath.Count > 0)
 			{
 				Vector2 _newpos = m_DrawPath.Dequeue();
@@ -123,10 +128,48 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
 					break;
 			}
 
-            texRender.SetPixels(m_texPixels);
-            texRender.Apply();
-		}
+            RenderDrawArea();
+            //texRender.SetPixels(m_texPixels);
+            //texRender.Apply();
+        }
 	}
+
+    private void FillDrawArea(Rect newArea)
+    {
+        if (m_drawArea == Rect.zero)
+        {
+            m_drawArea = newArea;
+            return;
+        }
+
+        m_drawArea.xMin = Mathf.Min(m_drawArea.xMin, newArea.xMin);
+        m_drawArea.xMax = Mathf.Max(m_drawArea.xMax, newArea.xMax);
+        m_drawArea.yMin = Mathf.Min(m_drawArea.yMin, newArea.yMin);
+        m_drawArea.yMax = Mathf.Max(m_drawArea.yMax, newArea.yMax);
+    }
+
+    Color[] m_drawPixelsBuffer;
+    private void RenderDrawArea()
+    {
+        int xMin = (int)m_drawArea.xMin;
+        int yMin = (int)m_drawArea.yMin;
+        int width = (int)m_drawArea.width;
+        int height = (int)m_drawArea.height;
+
+        int needBufferSize = width * height;
+        if (m_drawPixelsBuffer == null || m_drawPixelsBuffer.Length < needBufferSize)
+        {
+            m_drawPixelsBuffer = new Color[needBufferSize];
+        }
+
+        for (int y = 0; y < height; ++y)
+        {
+            Array.Copy(m_texPixels, (yMin + y) * texRender.width + xMin, m_drawPixelsBuffer, y * width, width);
+        }
+
+        texRender.SetPixels(xMin, yMin, width, height, m_drawPixelsBuffer);
+        texRender.Apply();
+    }
 
 	private void RenderPath(Vector2 start, Vector2 end)
 	{
@@ -213,6 +256,8 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
                 }
             }
         }
+
+        FillDrawArea(_rc);
     }
 
     void SetAlpha(int x, int y, float alpha)
