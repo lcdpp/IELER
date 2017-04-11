@@ -66,8 +66,15 @@
 		// Sample the texture
 		half4 col = tex2D(_MainTex, IN.texcoord) * IN.color;
 		half4 rnd = tex2D(_RendTex, IN.texcoord) * IN.color;
-		col.a = rnd.a;
-		return col;
+		
+		if ((col.r < 0.1) && (col.g < 0.1) && (col.b < 0.1) && (col.a > 0.5))
+			rnd.rgb = half3(0, 0, 0);
+		else
+			rnd.rgb = half3(1, 1, 1);
+
+		half4 ret = col * (1 - rnd.a) + rnd * rnd.a;
+		//col.a = rnd.a;
+		return ret;
 	}
 		ENDCG
 	}
