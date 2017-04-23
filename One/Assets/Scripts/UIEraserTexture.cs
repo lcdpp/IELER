@@ -25,7 +25,7 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
 
 	private bool isPointerDown = false;
 
-	private float m_brushdRadius = 50f;
+	private float m_brushdRadius = 30f;
 
     private Color[] m_texPixels;
 
@@ -37,8 +37,8 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
 	}
 
 	void Start () {
-
-		texRender = new Texture2D(Screen.width, Screen.height, TextureFormat.ARGB32, true);
+        
+        texRender = new Texture2D(image.texture.width, image.texture.height, TextureFormat.ARGB32, false, true);
 
         m_texPixels = texRender.GetPixels();
 
@@ -46,31 +46,44 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
 	}
 
 	public void OnPointerDown(PointerEventData data){
-		Vector2 _uipos = ConvertSceneToUI(data.position);
-		AddToActivePath(_uipos);
+        Vector2 _uipos;
+        if (ConvertSceneToUI(data.position, out _uipos))
+		    AddToActivePath(_uipos);
 		isPointerDown = true;
 	}
 
 	public void OnPointerUp(PointerEventData data){
-		Vector2 _uipos = ConvertSceneToUI(data.position);
-		AddToActivePath(_uipos);
+        Vector2 _uipos;
+        if (ConvertSceneToUI(data.position, out _uipos))
+		    AddToActivePath(_uipos);
 		EndActivePath();
 		isPointerDown = false;
 		m_LastPathPos = Vector2.zero;
 	}
 
-	private void OnPointerMove()
-	{
-		Vector2 _uipos = ConvertSceneToUI(Input.mousePosition);
-        
-		AddToActivePath(_uipos);
+	private void OnPointerMove(){
+        Vector2 _uipos;
+        if (ConvertSceneToUI(Input.mousePosition, out _uipos))
+		    AddToActivePath(_uipos);
 	}
 
-	/// <summary>
-	/// 把当前坐标加入到未完成的路径当中
-	/// </summary>
-	/// <param name="pos">UI坐标</param>
-	private void AddToActivePath(Vector2 pos)
+    bool ConvertSceneToUI(Vector2 screenPos, out Vector2 uiPos)
+    {
+        bool _ret = RectTransformUtility.ScreenPointToLocalPointInRectangle(mRectTransform, screenPos, null, out uiPos);
+        if (_ret)
+        {
+            uiPos.x += mRectTransform.rect.width / 2;
+            uiPos.y += mRectTransform.rect.height / 2;
+        }
+
+        return _ret;
+    }
+
+    /// <summary>
+    /// 把当前坐标加入到未完成的路径当中
+    /// </summary>
+    /// <param name="pos">UI坐标</param>
+    private void AddToActivePath(Vector2 pos)
 	{
 		if (m_LastPathPos == null
 			|| Vector2.Distance(pos, m_LastPathPos) < 10)
@@ -146,29 +159,46 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
         m_drawArea.xMax = Mathf.Max(m_drawArea.xMax, newArea.xMax);
         m_drawArea.yMin = Mathf.Min(m_drawArea.yMin, newArea.yMin);
         m_drawArea.yMax = Mathf.Max(m_drawArea.yMax, newArea.yMax);
+
+        if (m_drawArea.width < 0 || m_drawArea.height < 0)
+        {
+            int iii = 0;
+        }
     }
 
     Color[] m_drawPixelsBuffer;
     private void RenderDrawArea()
     {
-        int xMin = (int)m_drawArea.xMin;
-        int yMin = (int)m_drawArea.yMin;
-        int width = (int)m_drawArea.width;
-        int height = (int)m_drawArea.height;
-
-        int needBufferSize = width * height;
-        if (m_drawPixelsBuffer == null || m_drawPixelsBuffer.Length < needBufferSize)
+        try
         {
-            m_drawPixelsBuffer = new Color[needBufferSize];
-        }
+            int xMin = (int)m_drawArea.xMin;
+            int yMin = (int)m_drawArea.yMin;
+            int width = (int)m_drawArea.width;
+            int height = (int)m_drawArea.height;
 
-        for (int y = 0; y < height; ++y)
+            int needBufferSize = width * height;
+            if (m_drawPixelsBuffer == null || m_drawPixelsBuffer.Length < needBufferSize)
+            {
+                m_drawPixelsBuffer = new Color[needBufferSize];
+            }
+
+            for (int y = 0; y < height; ++y)
+            {
+                Array.Copy(m_texPixels, (yMin + y) * texRender.width + xMin, m_drawPixelsBuffer, y * width, width);
+            }
+
+            if (width < 0 || height < 0)
+            {
+                int iii = 0;
+            }
+
+            texRender.SetPixels(xMin, yMin, width, height, m_drawPixelsBuffer);
+            texRender.Apply();
+        }
+        catch (Exception e)
         {
-            Array.Copy(m_texPixels, (yMin + y) * texRender.width + xMin, m_drawPixelsBuffer, y * width, width);
+            Debug.LogError(e.Message);
         }
-
-        texRender.SetPixels(xMin, yMin, width, height, m_drawPixelsBuffer);
-        texRender.Apply();
     }
 
 	private void RenderPath(Vector2 start, Vector2 end)
@@ -201,12 +231,11 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
 	Vector2 start = Vector2.zero;
 	Vector2 end = Vector2.zero;
 
-	Vector2 ConvertSceneToUI(Vector3 posi){
-
-        return new Vector2(posi.x, posi.y);
-	}
 
 	public void Reset(){
+
+        if (m_texPixels == null)
+            return;
 
         for (int i = 0; i < m_texPixels.Length; ++i)
         {
@@ -242,17 +271,22 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
 	{
         Rect _rc = new Rect();
         _rc.xMin = Mathf.Max(0, center.x - radius);
-        _rc.xMax = Mathf.Min(Screen.width, center.x + radius);
+        _rc.xMax = Mathf.Min(texRender.width, center.x + radius);
         _rc.yMin = Mathf.Max(0, center.y - radius);
-        _rc.yMax = Mathf.Min(Screen.height, center.y + radius);
+        _rc.yMax = Mathf.Min(texRender.height, center.y + radius);
 
         for (int x = (int)_rc.xMin; x < (int)_rc.xMax; x++)
         {
             for (int y = (int)_rc.yMin; y < (int)_rc.yMax; y++)
             {
-                if (Vector2.Distance(new Vector2(x, y), center) < radius)
+                Vector2 _newPos = new Vector2(x, y);
+                float _radius = Vector2.Distance(_newPos, center);
+                if (_radius < radius)
                 {
-                    SetAlpha(x, y, 0);
+                    float alpha = 0;
+//                     if (_radius > radius / 2)
+//                         alpha = (_radius - radius / 2) / (radius / 2);
+                    SetAlpha(x, y, alpha);
                 }
             }
         }
@@ -263,6 +297,6 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
     void SetAlpha(int x, int y, float alpha)
     {
         int _index = y * texRender.width + x;
-        m_texPixels[_index].a = alpha;
+        m_texPixels[_index].a = Mathf.Min(m_texPixels[_index].a, alpha);
     }
 }

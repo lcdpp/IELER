@@ -64,15 +64,17 @@
 	half4 frag(v2f IN) : COLOR
 	{
 		// Sample the texture
-		half4 col = tex2D(_MainTex, IN.texcoord) * IN.color;
-		half4 rnd = tex2D(_RendTex, IN.texcoord) * IN.color;
+		half4 col = tex2D(_MainTex, IN.texcoord);
+		half4 rnd = tex2D(_RendTex, IN.texcoord);
 		
 		if ((col.r < 0.1) && (col.g < 0.1) && (col.b < 0.1) && (col.a > 0.5))
 			rnd.rgb = half3(0, 0, 0);
 		else
-			rnd.rgb = half3(1, 1, 1);
+			rnd.rgb = IN.color;
 
+		
 		half4 ret = col * (1 - rnd.a) + rnd * rnd.a;
+		ret.a = max(col.a, rnd.a);
 		//col.a = rnd.a;
 		return ret;
 	}
