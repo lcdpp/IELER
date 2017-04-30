@@ -3,9 +3,22 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
+[System.Serializable]
+public class GamePictureInfo
+{
+    public Sprite Picture;
+    public Color LineColor1;
+    public Color LineColor2;
+    public Color LineColor3;
+    public Color LineColor4;
+    public Color LineColor5;
+}
+
 public class GameMain : MonoBehaviour {
 
-    public Sprite[] GamePictures;
+    public GamePictureInfo[] GamePictures;
+
+    public GamePictureInfo CurGamePicture;
 
     public GameObject ItemTemplate;
     
@@ -25,11 +38,13 @@ public class GameMain : MonoBehaviour {
 	// Update is called once per frame
 	void Update () {
 		
+        if (EraserTexture != null && CurGamePicture != null)
+        {
+        }
 	}
 
     void InitPictures()
     {
-        GamePictures = Resources.LoadAll<Sprite>("GamePictures");
     }
 
     void InitItems()
@@ -41,7 +56,7 @@ public class GameMain : MonoBehaviour {
             _item.transform.SetParent(ItemTemplate.transform.parent);
             _item.transform.localScale = Vector3.one;
             _item.SetActive(true);
-            _item.GetComponent<Image>().sprite = GamePictures[i];
+            _item.GetComponent<Image>().sprite = GamePictures[i].Picture;
             _item.GetComponent<Button>().onClick.AddListener(() =>
             {
                 SelectItem(_index);
@@ -53,7 +68,13 @@ public class GameMain : MonoBehaviour {
     {
         GamePanel.SetActive(true);
         GameList.SetActive(false);
-        EraserTexture.image.texture = GamePictures[index].texture;
+        CurGamePicture = GamePictures[index];
+        EraserTexture.image.texture = CurGamePicture.Picture.texture;
+        EraserTexture.image.material.SetColor("_LineColor1", CurGamePicture.LineColor1);
+        EraserTexture.image.material.SetColor("_LineColor2", CurGamePicture.LineColor2);
+        EraserTexture.image.material.SetColor("_LineColor3", CurGamePicture.LineColor3);
+        EraserTexture.image.material.SetColor("_LineColor4", CurGamePicture.LineColor4);
+        EraserTexture.image.material.SetColor("_LineColor5", CurGamePicture.LineColor5);
         EraserTexture.Reset();
     }
 

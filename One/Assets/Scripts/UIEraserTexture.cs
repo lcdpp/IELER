@@ -159,11 +159,6 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
         m_drawArea.xMax = Mathf.Max(m_drawArea.xMax, newArea.xMax);
         m_drawArea.yMin = Mathf.Min(m_drawArea.yMin, newArea.yMin);
         m_drawArea.yMax = Mathf.Max(m_drawArea.yMax, newArea.yMax);
-
-        if (m_drawArea.width < 0 || m_drawArea.height < 0)
-        {
-            int iii = 0;
-        }
     }
 
     Color[] m_drawPixelsBuffer;
@@ -185,11 +180,6 @@ public class UIEraserTexture : MonoBehaviour ,IPointerDownHandler,IPointerUpHand
             for (int y = 0; y < height; ++y)
             {
                 Array.Copy(m_texPixels, (yMin + y) * texRender.width + xMin, m_drawPixelsBuffer, y * width, width);
-            }
-
-            if (width < 0 || height < 0)
-            {
-                int iii = 0;
             }
 
             texRender.SetPixels(xMin, yMin, width, height, m_drawPixelsBuffer);
